@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Alert API - Real-time Market Data</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #fff; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+        h1 { font-size: 3rem; margin-bottom: 10px; background: linear-gradient(90deg, #00d4ff, #00ff88); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .tagline { font-size: 1.3rem; color: #888; margin-bottom: 30px; }
+        .cta-btn { display: inline-block; padding: 15px 40px; background: linear-gradient(90deg, #00d4ff, #00ff88); color: #000; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; transition: transform 0.2s; }
+        .cta-btn:hover { transform: scale(1.05); }
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; padding: 60px 20px; }
+        .feature { background: #1a1a2e; padding: 30px; border-radius: 12px; border: 1px solid #333; }
+        .feature h3 { color: #00d4ff; margin-bottom: 15px; }
+        .pricing { background: #16213e; padding: 60px 20px; text-align: center; }
+        .pricing h2 { margin-bottom: 40px; font-size: 2rem; }
+        .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; max-width: 900px; margin: 0 auto; }
+        .plan { background: #1a1a2e; padding: 30px; border-radius: 12px; border: 1px solid #333; }
+        .plan.popular { border-color: #00d4ff; }
+        .plan h3 { font-size: 1.5rem; margin-bottom: 10px; }
+        .plan .price { font-size: 2.5rem; color: #00ff88; margin: 20px 0; }
+        .plan .price span { font-size: 1rem; color: #888; }
+        .plan ul { list-style: none; margin: 20px 0; }
+        .plan li { padding: 8px 0; color: #ccc; }
+        .plan li:before { content: "✓ "; color: #00ff88; }
+        .endpoints { padding: 60px 20px; }
+        .endpoints h2 { text-align: center; margin-bottom: 40px; font-size: 2rem; }
+        .endpoint-list { background: #1a1a2e; border-radius: 12px; overflow: hidden; }
+        .endpoint { padding: 15px 20px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 15px; }
+        .endpoint:last-child { border-bottom: none; }
+        .method { background: #00d4ff; color: #000; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        .method.post { background: #00ff88; }
+        .path { color: #fff; font-family: monospace; }
+        .desc { color: #888; margin-left: auto; }
+        .live-demo { background: #0a0a0a; padding: 60px 20px; text-align: center; }
+        .live-demo h2 { margin-bottom: 20px; }
+        .demo-box { background: #1a1a2e; padding: 20px; border-radius: 12px; max-width: 600px; margin: 0 auto; text-align: left; }
+        .demo-box pre { background: #0a0a0a; padding: 15px; border-radius: 8px; overflow-x: auto; color: #00ff88; font-size: 0.9rem; }
+        .payment-info { background: #16213e; padding: 40px 20px; text-align: center; }
+        .payment-info h3 { color: #00d4ff; margin-bottom: 15px; }
+        footer { text-align: center; padding: 40px 20px; color: #666; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Price Alert API</h1>
+        <p class="tagline">Real-time crypto, stock & forex data. Pay with USDC on Solana.</p>
+        <a href="#pricing" class="cta-btn">Get Started →</a>
+    </header>
+
+    <section class="features container">
+        <div class="feature">
+            <h3>📈 Real-Time Prices</h3>
+            <p>Live prices for 10,000+ cryptocurrencies, stocks, and forex pairs. Updated every 60 seconds.</p>
+        </div>
+        <div class="feature">
+            <h3>📊 Market Intelligence</h3>
+            <p>Fear & Greed Index, trending coins, global market cap, top gainers/losers.</p>
+        </div>
+        <div class="feature">
+            <h3>📜 Historical Data</h3>
+            <p>Up to 365 days of price history with minute-level granularity for backtesting.</p>
+        </div>
+        <div class="feature">
+            <h3>🔔 Alert Conditions</h3>
+            <p>Check if prices are above/below thresholds. Perfect for trading bots.</p>
+        </div>
+        <div class="feature">
+            <h3>💱 Conversions</h3>
+            <p>Convert between any crypto or fiat currency pair instantly.</p>
+        </div>
+        <div class="feature">
+            <h3>⚡ Fast & Reliable</h3>
+            <p>Average response time under 100ms. 99.9% uptime SLA.</p>
+        </div>
+    </section>
+
+    <section class="endpoints container">
+        <h2>API Endpoints</h2>
+        <div class="endpoint-list">
+            <div class="endpoint"><span class="method">GET</span><span class="path">/price/crypto/{symbol}</span><span class="desc">Get crypto price</span></div>
+            <div class="endpoint"><span class="method">GET</span><span class="path">/price/stock/{symbol}</span><span class="desc">Get stock price</span></div>
+            <div class="endpoint"><span class="method">GET</span><span class="path">/history/{symbol}?days=30</span><span class="desc">Price history</span></div>
+            <div class="endpoint"><span class="method">GET</span><span class="path">/trending</span><span class="desc">Trending cryptos</span></div>
+            <div class="endpoint"><span class="method">GET</span><span class="path">/top/100</span><span class="desc">Top coins by market cap</span></div>
+            <div class="endpoint"><span class="method">GET</span><span class="path">/market/fear-greed</span><span class="desc">Fear & Greed Index</span></div>
+            <div class="endpoint"><span class="method">GET</span><span class="path">/market/global</span><span class="desc">Global market data</span></div>
+            <div class="endpoint"><span class="method">GET</span><span class="path">/convert?from=X&to=Y</span><span class="desc">Currency conversion</span></div>
+            <div class="endpoint"><span class="method">GET</span><span class="path">/search/{query}</span><span class="desc">Search coins</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="path">/alert/check</span><span class="desc">Check alert condition</span></div>
+            <div class="endpoint"><span class="method post">POST</span><span class="path">/price/batch</span><span class="desc">Batch price check (20 max)</span></div>
+        </div>
+    </section>
+
+    <section class="live-demo">
+        <h2>Try It Now</h2>
+        <div class="demo-box">
+            <pre>curl https://price-alert-api-production.up.railway.app/price/crypto/bitcoin
+
+{
+  "type": "crypto",
+  "symbol": "BITCOIN",
+  "price": 65083,
+  "change24h": -7.88,
+  "volume24h": 162591821297,
+  "marketCap": 1297163467278
+}</pre>
+        </div>
+    </section>
+
+    <section class="pricing" id="pricing">
+        <h2>Simple Pricing</h2>
+        <div class="plans">
+            <div class="plan">
+                <h3>Free</h3>
+                <div class="price">$0<span>/mo</span></div>
+                <ul>
+                    <li>10 calls/hour</li>
+                    <li>Basic endpoints</li>
+                    <li>No API key needed</li>
+                </ul>
+            </div>
+            <div class="plan popular">
+                <h3>Basic</h3>
+                <div class="price">$5<span>/mo</span></div>
+                <ul>
+                    <li>1,000 calls/month</li>
+                    <li>All endpoints</li>
+                    <li>API key included</li>
+                </ul>
+            </div>
+            <div class="plan">
+                <h3>Pro</h3>
+                <div class="price">$15<span>/mo</span></div>
+                <ul>
+                    <li>10,000 calls/month</li>
+                    <li>All endpoints</li>
+                    <li>Priority support</li>
+                </ul>
+            </div>
+            <div class="plan">
+                <h3>Unlimited</h3>
+                <div class="price">$50<span>/mo</span></div>
+                <ul>
+                    <li>Unlimited calls</li>
+                    <li>All endpoints</li>
+                    <li>Dedicated support</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="payment-info">
+        <h3>💰 Pay with Crypto</h3>
+        <p>We accept USDC on Solana. Instant activation, no account needed.</p>
+        <p style="margin-top: 15px; color: #888;">Send payment → Get API key automatically</p>
+    </section>
+
+    <footer>
+        <p>Price Alert API © 2026 | Powered by CoinGecko & Yahoo Finance</p>
+    </footer>
+</body>
+</html>
