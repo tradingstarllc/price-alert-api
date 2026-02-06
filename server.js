@@ -746,3 +746,47 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Price Alert API v3.0 running on port ${PORT}`);
 });
+
+// ==================== SOL DONATION ENDPOINT ====================
+// For funding the Solana trading bot
+
+app.post('/donate/create', async (req, res) => {
+    const orderId = crypto.randomBytes(8).toString('hex');
+    
+    try {
+        const callbackUrl = encodeURIComponent(
+            `${req.protocol}://${req.get('host')}/donate/webhook?order_id=${orderId}`
+        );
+        
+        // Accept native SOL
+        const response = await axios.get(
+            `https://api.cryptapi.io/sol/sol/create/?callback=${callbackUrl}&address=${PAYMENT_WALLET}&pending=1`,
+            { timeout: 10000 }
+        );
+        
+        if (response.data.status === 'success') {
+            res.json({
+                orderId,
+                message: 'Help fund our Solana trading infrastructure',
+                payment: {
+                    address: response.data.address_in,
+                    network: 'Solana',
+                    token: 'SOL',
+                    suggestedAmount: '0.25 SOL (~$20)',
+                    minimum: response.data.minimum_transaction_coin
+                },
+                note: 'All donations go directly to running trading bots that generate returns'
+            });
+        } else {
+            res.status(500).json({ error: 'Failed to create payment address' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'Payment service unavailable' });
+    }
+});
+
+app.all('/donate/webhook', async (req, res) => {
+    const data = req.method === 'GET' ? req.query : req.body;
+    console.log('Donation received:', data);
+    res.status(200).send('*ok*');
+});
