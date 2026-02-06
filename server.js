@@ -281,7 +281,7 @@ async function getGasPrices() {
 
     try {
         const res = await axios.get(
-            'https://api.etherscan.io/api?module=gastracker&action=gasoracle',
+            'https://api.blocknative.com/gasprices/blockprices',
             { timeout: 5000 }
         );
         if (res.data.status === '1') {
