@@ -1,0 +1,17 @@
+{
+  "name": "price-alert-api",
+  "version": "1.0.0",
+  "description": "Simple API for crypto and stock price alerts",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
