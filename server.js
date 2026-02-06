@@ -48,18 +48,44 @@ async function getStockPrice(symbol) {
     }
 
     try {
+        // Try v8 API first
         const res = await axios.get(
             `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`,
-            { timeout: 5000, headers: { 'User-Agent': 'Mozilla/5.0' } }
+            { 
+                timeout: 5000, 
+                headers: { 
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'application/json'
+                } 
+            }
         );
         const price = res.data?.chart?.result?.[0]?.meta?.regularMarketPrice;
         if (price) {
             priceCache.set(cacheKey, { price, timestamp: Date.now() });
+            return price;
         }
-        return price;
     } catch (err) {
-        return null;
+        // Fallback to quote endpoint
+        try {
+            const res = await axios.get(
+                `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=price`,
+                { 
+                    timeout: 5000, 
+                    headers: { 
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    } 
+                }
+            );
+            const price = res.data?.quoteSummary?.result?.[0]?.price?.regularMarketPrice?.raw;
+            if (price) {
+                priceCache.set(cacheKey, { price, timestamp: Date.now() });
+                return price;
+            }
+        } catch (e) {
+            // Both failed
+        }
     }
+    return null;
 }
 
 // Endpoint: Get current price
