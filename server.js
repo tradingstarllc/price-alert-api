@@ -1,16 +1,24 @@
 /**
  * Price Alert API - Lightweight Express Server
- * Ready to deploy on Railway/Render/Fly.io (free tiers)
- * Then list on RapidAPI for monetization
+ * With CryptAPI Solana payments integration
  */
 
 const express = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
+
+// Payment config - Solana wallet
+const PAYMENT_WALLET = '82rh4CG9bMfVLFcpWwUXAscVkAgtDqCXgcQ4k2bjuoEx';
+const API_KEY_VALIDITY_DAYS = 30;
+
+// In-memory API key store (production: use Redis/DB)
+const apiKeys = new Map();
+const pendingPayments = new Map();
 
 // In-memory cache for prices (production: use Redis)
 const priceCache = new Map();
@@ -190,17 +198,176 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', uptime: process.uptime() });
 });
 
+// ==================== PAYMENT ENDPOINTS ====================
+
+// Create a payment session
+app.post('/payment/create', async (req, res) => {
+    const { plan, email } = req.body;
+    
+    const plans = {
+        basic: { price: 5, calls: 1000, name: 'Basic' },
+        pro: { price: 15, calls: 10000, name: 'Pro' },
+        unlimited: { price: 50, calls: 999999, name: 'Unlimited' }
+    };
+    
+    const selectedPlan = plans[plan] || plans.basic;
+    const orderId = crypto.randomBytes(8).toString('hex');
+    
+    try {
+        // Create CryptAPI payment address for SOL/USDC
+        const callbackUrl = encodeURIComponent(
+            `${req.protocol}://${req.get('host')}/payment/webhook?order_id=${orderId}`
+        );
+        
+        const response = await axios.get(
+            `https://api.cryptapi.io/sol/usdc/create/?callback=${callbackUrl}&address=${PAYMENT_WALLET}&pending=1`,
+            { timeout: 10000 }
+        );
+        
+        if (response.data.status === 'success') {
+            // Store pending payment
+            pendingPayments.set(orderId, {
+                plan: selectedPlan,
+                email: email || null,
+                address_in: response.data.address_in,
+                status: 'pending',
+                created: Date.now()
+            });
+            
+            res.json({
+                orderId,
+                plan: selectedPlan.name,
+                priceUSD: selectedPlan.price,
+                payment: {
+                    address: response.data.address_in,
+                    network: 'Solana',
+                    token: 'USDC',
+                    amount: selectedPlan.price,
+                    minimum: response.data.minimum_transaction_coin
+                },
+                instructions: 'Send USDC on Solana to the address above. API key will be generated automatically.'
+            });
+        } else {
+            res.status(500).json({ error: 'Failed to create payment address' });
+        }
+    } catch (err) {
+        console.error('Payment creation error:', err.message);
+        res.status(500).json({ error: 'Payment service unavailable' });
+    }
+});
+
+// Payment webhook (called by CryptAPI)
+app.all('/payment/webhook', async (req, res) => {
+    const data = req.method === 'GET' ? req.query : req.body;
+    const { order_id } = req.query;
+    
+    const payment = pendingPayments.get(order_id);
+    if (!payment) {
+        return res.status(200).send('*ok*');
+    }
+    
+    const valueCoin = parseFloat(data.value_coin || 0);
+    const pending = parseInt(data.pending || 0);
+    
+    // Check if payment received and confirmed
+    if (pending === 0 && valueCoin >= payment.plan.price * 0.95) { // 5% tolerance
+        // Generate API key
+        const apiKey = 'pk_' + crypto.randomBytes(16).toString('hex');
+        const expiresAt = Date.now() + (API_KEY_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+        
+        apiKeys.set(apiKey, {
+            plan: payment.plan.name,
+            callsRemaining: payment.plan.calls,
+            email: payment.email,
+            createdAt: Date.now(),
+            expiresAt
+        });
+        
+        // Update payment status
+        payment.status = 'completed';
+        payment.apiKey = apiKey;
+        payment.txid = data.txid_in;
+        
+        console.log(`Payment confirmed for ${order_id}: ${apiKey}`);
+    }
+    
+    res.status(200).send('*ok*');
+});
+
+// Check payment status / retrieve API key
+app.get('/payment/status/:orderId', (req, res) => {
+    const payment = pendingPayments.get(req.params.orderId);
+    
+    if (!payment) {
+        return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    if (payment.status === 'completed' && payment.apiKey) {
+        res.json({
+            status: 'completed',
+            apiKey: payment.apiKey,
+            plan: payment.plan.name,
+            message: 'Use this API key in the X-API-Key header for authenticated requests'
+        });
+    } else {
+        res.json({
+            status: 'pending',
+            address: payment.address_in,
+            plan: payment.plan.name,
+            priceUSD: payment.plan.price,
+            message: 'Waiting for payment confirmation...'
+        });
+    }
+});
+
+// Validate API key middleware
+const validateApiKey = (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    
+    // Allow free tier for basic endpoints
+    if (!apiKey) {
+        req.rateLimit = { calls: 10, period: 'hour' }; // Free tier
+        return next();
+    }
+    
+    const keyData = apiKeys.get(apiKey);
+    if (!keyData) {
+        return res.status(401).json({ error: 'Invalid API key' });
+    }
+    
+    if (Date.now() > keyData.expiresAt) {
+        return res.status(401).json({ error: 'API key expired' });
+    }
+    
+    if (keyData.callsRemaining <= 0) {
+        return res.status(429).json({ error: 'API calls exhausted' });
+    }
+    
+    keyData.callsRemaining--;
+    req.keyData = keyData;
+    next();
+};
+
 // Root
 app.get('/', (req, res) => {
     res.json({
         name: 'Price Alert API',
-        version: '1.0.0',
+        version: '2.0.0',
         endpoints: [
             'GET /price/:type/:symbol - Get current price',
             'POST /alert/check - Check alert condition',
             'POST /price/batch - Batch price check (max 10)',
-            'GET /health - Health check'
+            'GET /health - Health check',
+            'POST /payment/create - Create payment (plans: basic/pro/unlimited)',
+            'GET /payment/status/:orderId - Check payment & get API key'
         ],
+        pricing: {
+            free: '10 calls/hour, no API key needed',
+            basic: '$5/month - 1,000 calls',
+            pro: '$15/month - 10,000 calls',
+            unlimited: '$50/month - unlimited calls'
+        },
+        payment: 'USDC on Solana (instant, low fees)',
         examples: {
             crypto: '/price/crypto/bitcoin',
             stock: '/price/stock/AAPL'
